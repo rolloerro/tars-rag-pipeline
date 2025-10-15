@@ -1,60 +1,34 @@
-from sentence_transformers import SentenceTransformer
-import numpy as np
-import faiss
-
-# 1. Загружаем эмбеддинг-модель
-model = SentenceTransformer('all-MiniLM-L6-v2')
-
-# 2. Наши документы (демо)
-docs = [
-    "ML Engineer designs models for real-world applications.",
-    "RAG combines retrieval with generation to enhance LLM accuracy.",
-    "Vector databases store embeddings for semantic search.",
-]
-
-# 3. Создаём эмбеддинги
-embeddings = model.encode(docs)
-embeddings = np.array(embeddings).astype('float32')
-
-# 4. Индексируем с помощью FAISS
-index = faiss.IndexFlatL2(embeddings.shape[1])
-index.add(embeddings)
-
-# 5. Поисковый запрос
-query = "How does RAG improve LLMs?"
-query_emb = model.encode([query]).astype('float32')
-
-# 6. Поиск ближайшего документа
-_, indices = index.search(query_emb, k=1)
-print("🔍 Best match:", docs[indices[0][0]])
-=======
+# rag_pipeline.py
+import os
 import pickle
-from sentence_transformers import SentenceTransformer
 import faiss
+from sentence_transformers import SentenceTransformer
 
-index_path = "data/embeddings/faiss.index"
-docs_path = "data/embeddings/docs.pkl"
+class RAGSearch:
+    def __init__(self, index_path="data/embeddings/faiss.index", docs_path="data/embeddings/docs.pkl"):
+        self.index_path = index_path
+        self.docs_path = docs_path
 
-with open(docs_path, "rb") as f:
-    docs = pickle.load(f)
+        # Загружаем индекс FAISS
+        if not os.path.exists(self.index_path):
+            raise FileNotFoundError(f"Индекс не найден: {self.index_path}")
+        self.index = faiss.read_index(self.index_path)
 
-index = faiss.read_index(index_path)
+        # Загружаем документы
+        if not os.path.exists(self.docs_path):
+            raise FileNotFoundError(f"Документы не найдены: {self.docs_path}")
+        with open(self.docs_path, "rb") as f:
+            self.documents = pickle.load(f)
 
-model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
+        # Загружаем модель для эмбеддингов
+        self.model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
 
-def search(query, top_k=3):
-    query_vec = model.encode([query])
-    D, I = index.search(query_vec, top_k)
-    results = [docs[i] for i in I[0]]
-    return results
+    def query(self, question, k=3):
+        # Преобразуем вопрос в эмбеддинг
+        q_vec = self.model.encode([question])
+        D, I = self.index.search(q_vec, k)  # Ищем k ближайших
 
-def generate_answer(query):
-    results = search(query)
-    answer = "\n---\n".join(results)
-    return answer
-
-if __name__ == "__main__":
-    query = input("Введите вопрос: ")
-    answer = generate_answer(query)
-    print("\n🔍 Результат поиска + генерации:\n", answer)
->>>>>>> 303a71b (🚀 Начальный RAG MVP с PDF поиском и генерацией ответов)
+        results = []
+        for idx in I[0]:
+            results.append(self.documents[idx])
+        return "\n\n".join(results)
