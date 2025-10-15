@@ -27,3 +27,34 @@ query_emb = model.encode([query]).astype('float32')
 # 6. Поиск ближайшего документа
 _, indices = index.search(query_emb, k=1)
 print("🔍 Best match:", docs[indices[0][0]])
+=======
+import pickle
+from sentence_transformers import SentenceTransformer
+import faiss
+
+index_path = "data/embeddings/faiss.index"
+docs_path = "data/embeddings/docs.pkl"
+
+with open(docs_path, "rb") as f:
+    docs = pickle.load(f)
+
+index = faiss.read_index(index_path)
+
+model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
+
+def search(query, top_k=3):
+    query_vec = model.encode([query])
+    D, I = index.search(query_vec, top_k)
+    results = [docs[i] for i in I[0]]
+    return results
+
+def generate_answer(query):
+    results = search(query)
+    answer = "\n---\n".join(results)
+    return answer
+
+if __name__ == "__main__":
+    query = input("Введите вопрос: ")
+    answer = generate_answer(query)
+    print("\n🔍 Результат поиска + генерации:\n", answer)
+>>>>>>> 303a71b (🚀 Начальный RAG MVP с PDF поиском и генерацией ответов)
