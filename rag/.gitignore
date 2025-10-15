@@ -1,0 +1,14 @@
+# Virtual environment
+venv/
+__pycache__/
+*.pyc
+
+# System
+.DS_Store
+
+# Cache and model files
+*.cache/
+.cache/
+*.pth
+*.bin
+*.pt
